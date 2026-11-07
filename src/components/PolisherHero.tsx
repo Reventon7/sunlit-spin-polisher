@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { mountPolisherHero } from "@/lib/polisher-hero-scene";
+import logo from "@/assets/oto-logo.png.asset.json";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export function PolisherHero() {
   const ref = useRef<HTMLDivElement>(null);
@@ -10,23 +12,21 @@ export function PolisherHero() {
   }, []);
 
   return (
-    <div ref={ref}>
-      <div className="ph-track" id="ph-track">
+    <div ref={ref} className="ph-root">
+      <div className="ph-pin">
+        <div className="ph-track" id="ph-track" aria-hidden="true" />
         <div className="ph-view">
           <canvas
             id="ph-gl"
-            aria-label="A spiral dental polisher spinning slowly in a lilac sky with giant words wrapping around it"
+            aria-label="A 3D spiral dental polisher with a slowly spinning head in a warm peach sky, with giant words wrapping around it"
           />
           <div className="ph-ui">
-            <a className="ph-logo" href="#" aria-label="Sun Dental">
-              Sun Dental
-              <svg viewBox="0 0 50 30" aria-hidden="true">
-                <path d="M2 22C8 20 12 6 15 3c2-2-3 20-1 21 3 1 5-9 8-9-1 3-2 8 0 8 3 0 4-8 7-8s-1 8 2 8 5-6 8-6 2 4 9 2" />
-              </svg>
+            <a className="ph-logo" href="#" aria-label="OTO">
+              <img src={logo.url} alt="OTO" />
             </a>
             <nav className="ph-links" aria-label="Main">
-              <a href="#">[Products]</a>
-              <a href="#">[Contact]</a>
+              <a href="#ph-foot">[Products]</a>
+              <a href="#ph-foot">[Contact]</a>
             </nav>
             <div className="ph-index" id="ph-index" aria-hidden="true">
               <i />
@@ -93,8 +93,10 @@ export function PolisherHero() {
               </svg>
             </button>
           </div>
+          <div className="ph-veil" aria-hidden="true" />
         </div>
       </div>
+      <SiteFooter />
     </div>
   );
 }

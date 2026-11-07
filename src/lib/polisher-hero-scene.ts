@@ -1,10 +1,9 @@
 // WebGL2 scene for the scroll-driven polisher hero.
 // Port of the "Driftlab jellyfish" template: same sky, points, word ribbons and motion,
-// with the keyed jellyfish video replaced by the polisher. The stem is a still photo;
-// the spiral head is drawn as an extruded, slowly spinning disc so only the head turns.
+// with the keyed jellyfish video replaced by a full 3D polisher model (polisher-model.ts)
+// drawn into the same context. The sky photo is recoloured to the OTO warm palette.
 
-import stemUrl from "@/assets/polisher-stem.png";
-import headUrl from "@/assets/polisher-head.png";
+import { createPolisherModel, type PolisherModel } from "@/lib/polisher-model";
 
 export const HERO_WORDS = ["SPIRAL", "POLISH TO", "PERFECTION", "SMOOTH", "AND BRILLIANT"];
 
@@ -65,7 +64,11 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   const skyP = program(
     QUAD,
     `in vec2 v;uniform sampler2D T;uniform vec3 C;out vec4 O;
-  void main(){vec2 uv=vec2(.5)+(v-.5)*C.xy;uv.y=1.-uv.y;uv.x+=C.z;O=textureLod(T,uv,1.6);}`,
+  void main(){vec2 uv=vec2(.5)+(v-.5)*C.xy;uv.y=1.-uv.y;uv.x+=C.z;vec3 c=textureLod(T,uv,1.6).rgb;
+  float L=dot(c,vec3(.299,.587,.114));
+  float t=clamp(smoothstep(.77,.93,L)*.55+(1.-smoothstep(.05,.29,c.b-c.r))*.45,0.,1.);
+  vec3 a=vec3(.93,.66,.45),b=vec3(.98,.83,.68),d=vec3(1.,.96,.91);
+  O=vec4(t<.5?mix(a,b,t*2.):mix(b,d,t*2.-1.),1.);}`,
     ["T", "C"],
   );
   const wordP = program(
@@ -78,7 +81,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     v=vec2(mix(B.x,B.z,a.x),mix(B.w,B.y,a.y));
     gl_Position=vec4(x*${FOCAL.toFixed(2)}/A,y*${FOCAL.toFixed(2)},0.,${CAM.toFixed(1)}-z);
   }`,
-    `in vec2 v;uniform sampler2D T;out vec4 O;void main(){float a=texture(T,v).a;O=vec4(vec3(.043,.043,.063)*a,a);}`,
+    `in vec2 v;uniform sampler2D T;out vec4 O;void main(){float a=texture(T,v).a;O=vec4(vec3(.043,.035,.03)*a,a);}`,
     ["W", "B", "A", "L", "T"],
   );
   const dotP = program(
@@ -86,43 +89,10 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   void main(){k=a.w;float y=fract(a.y+S*.012*(.4+a.z))*2.3-1.15;float x=fract(a.x+H*(a.w>.5?.035:.004))*2.4-1.2+.03*sin(S*.2+a.z*9.);
     gl_Position=vec4(x,y,0,1);gl_PointSize=(a.w>.5?5.+a.z*15.:5.+a.z*24.)*P;r=S*.6+a.z*7.+H;}`,
     `in float k;in float r;out vec4 O;void main(){vec2 p=gl_PointCoord-.5;
-    if(k>.5){float c=cos(r),s=sin(r);p=mat2(c,-s,s,c)*p;float a=step(max(abs(p.x),abs(p.y)),.3);O=vec4(vec3(.04)*a,a);}
-    else{float a=smoothstep(.5,.1,length(p))*.62;O=vec4(vec3(1.)*a,a);}}`,
+    if(k>.5){float c=cos(r),s=sin(r);p=mat2(c,-s,s,c)*p;float a=step(max(abs(p.x),abs(p.y)),.3);O=vec4(vec3(.043,.035,.03)*a,a);}
+    else{float a=smoothstep(.5,.1,length(p))*.62;O=vec4(vec3(1.,.97,.92)*a,a);}}`,
     ["S", "H", "P"],
   );
-  // Polisher: stem photo + spinning extruded head. Head geometry is measured from the
-  // product photo (uv space of the 703x1250 stem crop, y down).
-  const prodP = program(
-    `uniform mat3 M;out vec2 v;void main(){vec2 c=vec2((gl_VertexID<<1)&2,gl_VertexID&2);if(gl_VertexID==3)c=vec2(2,2);c*=.5;v=vec2(c.x,1.-c.y);gl_Position=vec4((M*vec3(c-.5,1.)).xy,0,1);}`,
-    `in vec2 v;uniform sampler2D S;uniform sampler2D D;uniform float R;out vec4 O;
-    const vec2 C=vec2(.5007,.3616);const vec2 AB=vec2(.3485,.0568);const float TH=.0176;const float TIP=.885;
-    const vec3 BASE=vec3(.57,.43,.46);
-    void main(){
-      vec4 st=texture(S,v);
-      float c=cos(R),s=sin(R);mat2 rot=mat2(c,-s,s,c);
-      vec2 gx=rot*(dFdx(v)/AB)*TIP*.5,gy=rot*(dFdy(v)/AB)*TIP*.5;
-      vec3 col=vec3(0);float acc=0.;
-      for(int k=0;k<=12;k++){
-        float f=float(k)/12.;
-        vec2 q=(v-C-vec2(0.,TH*f))/AB;
-        if(dot(q,q)>1.08)continue;
-        vec4 h=textureGrad(D,rot*q*TIP*.5+.5,gx,gy);
-        float m=h.r;
-        vec3 lc;
-        if(k==0){
-          float light=.88+.18*(q.y*.5+.5)+.04*q.x;
-          float bev=mix(.84,1.,smoothstep(.5,.95,h.g));
-          lc=BASE*light*bev;
-        }else{
-          lc=BASE*(.74+.08*q.x)*(1.-.18*f);
-        }
-        col+=(1.-acc)*lc*m;acc+=(1.-acc)*m;
-      }
-      O=vec4(col,acc)+(1.-acc)*st;
-    }`,
-    ["M", "S", "D", "R"],
-  );
-
   // word atlas: one row per word, cut to its measured width
   const ROW = 512,
     EM = 440,
@@ -167,9 +137,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     return t;
   };
   const tSky = tex(0, gl.LINEAR_MIPMAP_LINEAR),
-    tWords = tex(1, gl.LINEAR_MIPMAP_LINEAR),
-    tStem = tex(2, gl.LINEAR_MIPMAP_LINEAR),
-    tHead = tex(3, gl.LINEAR_MIPMAP_LINEAR);
+    tWords = tex(1, gl.LINEAR_MIPMAP_LINEAR);
   const aniso = gl.getExtension("EXT_texture_filter_anisotropic");
   const load = (url: string, cors: boolean) =>
     new Promise<HTMLImageElement | null>((r) => {
@@ -201,6 +169,13 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
   const vaoE = gl.createVertexArray();
 
+  let model: PolisherModel | null = null;
+  try {
+    model = createPolisherModel(cv, gl);
+  } catch (e) {
+    console.error("Polisher model failed to start", e);
+  }
+
   let H = 1,
     dpr = 1,
     asp = 1;
@@ -212,6 +187,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     cv.height = H;
     asp = W / H;
     gl.viewport(0, 0, W, H);
+    model?.resize(W, H);
   }
   addEventListener("resize", size);
 
@@ -234,6 +210,12 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     const sink = ease(smooth(span + 0.015, span + 0.105, s)) * 6;
     const grow = ease(smooth(span + 0.08, span + 0.22, s)),
       side = smooth(0.76, 0.82, s) - 2 * smooth(0.88, 0.94, s);
+    // the model shares this context, so restore our own state every frame
+    gl.viewport(0, 0, cv.width, cv.height);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tSky);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, tWords);
     // sky
     gl.disable(gl.BLEND);
     gl.useProgram(skyP.p);
@@ -268,11 +250,6 @@ export function mountPolisherHero(root: HTMLElement): () => void {
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, (cols + 1) * 2);
     });
     // polisher (same motion as the template's jellyfish)
-    gl.useProgram(prodP.p);
-    gl.bindVertexArray(vaoE);
-    gl.uniform1i(prodP.u["S"]!, 2);
-    gl.uniform1i(prodP.u["D"]!, 3);
-    gl.uniform1f(prodP.u["R"]!, calm ? 0 : -sec * HEAD_SPIN);
     const h = (0.98 + grow * 0.42) * clamp(0.62 + asp * 0.4, 0.6, 1),
       w = ((h * (1080 / 1920)) / asp) * (0.93 + 0.07 * Math.cos(s * 14));
     const roll = (0.1 * Math.sin(s * 13 + 0.4) + 0.03 * Math.sin(sec * 0.5)) * (1 + grow * 0.5),
@@ -280,7 +257,8 @@ export function mountPolisherHero(root: HTMLElement): () => void {
       si = Math.sin(roll);
     const ox = mx * 0.018 + side * 0.34 * Math.min(1, asp),
       oy = 0.03 + 0.018 * Math.sin(sec * 0.8) + my * 0.018 - grow * 0.1;
-    gl.uniformMatrix3fv(prodP.u["M"]!, false, [
+    gl.bindVertexArray(null);
+    model?.render([
       w * 2 * co,
       w * 2 * si * asp,
       0,
@@ -290,8 +268,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
       ox,
       oy,
       1,
-    ]);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    ], calm ? 0 : -sec * HEAD_SPIN);
     ui(s, k);
   }
 
@@ -337,12 +314,16 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   addEventListener("scroll", read, { passive: true });
   addEventListener("pointermove", onMove);
   let raf = 0;
+  // Footer hand-off: 0 when the footer is below the screen, 1 once it covers the hero.
+  const foot = document.getElementById("ph-foot");
   function loop(t: number) {
     if (!alive) return;
     now += (target - now) * (calm ? 1 : 0.1);
     mx += (tmx - mx) * 0.05;
     my += (tmy - my) * 0.05;
-    draw(now, t / 1000);
+    const fp = foot ? clamp((innerHeight - foot.getBoundingClientRect().top) / innerHeight) : 0;
+    root.style.setProperty("--fp", fp.toFixed(4));
+    if (fp < 1) draw(now, t / 1000);
     raf = requestAnimationFrame(loop);
   }
   const upBtn = q<HTMLButtonElement>("ph-up");
@@ -390,6 +371,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   const upload = (unit: number, t: WebGLTexture | null, img: HTMLImageElement | TexImageSource, premul: boolean) => {
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premul);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
     gl.generateMipmap(gl.TEXTURE_2D);
@@ -410,15 +392,14 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     .then(() => document.fonts.load(`${EM}px Anton`, "SPIRAL"))
     .catch(() => null);
 
-  Promise.all([load(SKY, true), load(stemUrl, false), load(headUrl, false), fontReady]).then(
-    ([sky, stem, headImg]) => {
+  Promise.all([load(SKY, true), fontReady]).then(
+    ([sky]) => {
     if (!alive) return;
     ready = true;
     drawAtlas();
     if (sky) upload(0, tSky, sky, false);
     upload(1, tWords, atlas, false);
-    if (stem) upload(2, tStem, stem, true);
-    if (headImg) upload(3, tHead, headImg, false);
+    cv.parentElement?.setAttribute("data-scene-ready", "");
     size();
     read();
     now = target;
@@ -436,5 +417,6 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     upBtn.onclick = null;
     soundBtn.onclick = null;
     void ctx?.close();
+    model?.dispose();
   };
 }

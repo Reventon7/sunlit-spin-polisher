@@ -32,4 +32,5 @@ use the editor.
 ## Project rules
 
 - The home hero is a raw WebGL2 scene in `src/lib/polisher-hero-scene.ts`, mounted by `PolisherHero`; it ports the user's Driftlab template, so keep its timings and motion values unchanged unless asked — the user wants that exact motion.
-- The polisher is two textures: a still stem photo and a top-view head mask that the shader extrudes and spins, so only the head turns; re-measure the head constants in the shader if the stem crop changes.
+- The polisher is a procedural three.js model (`src/lib/polisher-model.ts`) rendered into the hero's own WebGL2 context with the template's frame matrix applied to its camera, so it moves exactly like the jellyfish; only its `head` group spins, and the raw-GL code rebinds its own textures/state each frame because three.js shares the context.
+- The footer slides over the pinned hero: `.ph-pin` is one screen taller than the 800vh `#ph-track` used for scroll progress, and the scene writes `--fp` (0..1) for the hand-off styles, so hero timings stay untouched.
