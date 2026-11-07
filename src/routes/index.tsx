@@ -1,23 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { PolisherHero } from "@/components/PolisherHero";
 
-// The home route ships no og:image, so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "TCP543204M Spiral Polisher — Sun Dental" },
+      {
+        name: "description",
+        content:
+          "A spiral dental polisher spins slowly through a lilac sky while huge words wrap around it as you scroll.",
+      },
+      { property: "og:title", content: "TCP543204M Spiral Polisher — Sun Dental" },
+      {
+        property: "og:description",
+        content: "Medium grit spiral polisher, Ø 12.7 x 0.6 mm on a 204-RA shank.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+  return <PolisherHero />;
 }

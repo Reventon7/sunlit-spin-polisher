@@ -28,3 +28,8 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+
+- The home hero is a raw WebGL2 scene in `src/lib/polisher-hero-scene.ts`, mounted by `PolisherHero`; it ports the user's Driftlab template, so keep its timings and motion values unchanged unless asked — the user wants that exact motion.
+- The polisher is two textures: a still stem photo and a top-view head mask that the shader extrudes and spins, so only the head turns; re-measure the head constants in the shader if the stem crop changes.
