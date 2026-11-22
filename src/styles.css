@@ -232,6 +232,9 @@ body {
   cursor: pointer;
 }
 .ph-logo {
+  mix-blend-mode: multiply;
+  transform: translateY(calc(var(--fp, 0) * -60px));
+  opacity: calc(1 - var(--fp, 0) * 0.7);
   position: absolute;
   left: calc(30 * var(--u));
   top: calc(20 * var(--u));
@@ -243,8 +246,10 @@ body {
 }
 .ph-logo img {
   display: block;
-  height: calc(38 * var(--u));
+  height: calc(70 * var(--u));
   width: auto;
+  max-width: none;
+  margin: calc(-16 * var(--u)) calc(-20 * var(--u));
 }
 .ph-links {
   position: absolute;
@@ -418,7 +423,8 @@ body {
     top: 14px;
   }
   .ph-logo img {
-    height: 30px;
+    height: 60px;
+    margin: -14px -18px;
   }
   .ph-links {
     right: 16px;
@@ -505,6 +511,7 @@ body {
   pointer-events: none;
 }
 .ph-foot-in {
+  mix-blend-mode: screen;
   position: relative;
   z-index: 1;
   flex: 1;
@@ -612,7 +619,9 @@ body {
 }
 .ph-foot-logo {
   display: block;
-  width: min(100%, 860px);
+  filter: grayscale(1) invert(1);
+  mix-blend-mode: screen;
+  width: min(100%, 440px);
   margin-left: auto;
   margin-right: auto;
   height: auto;

@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { mountPolisherHero } from "@/lib/polisher-hero-scene";
-import logo from "@/assets/oto-logo.png.asset.json";
 import { SiteFooter } from "@/components/SiteFooter";
 
 export function PolisherHero() {
@@ -20,10 +19,10 @@ export function PolisherHero() {
             id="ph-gl"
             aria-label="A 3D spiral dental polisher with a slowly spinning head in a soft sage sky, with giant words wrapping around it"
           />
+          <a className="ph-logo" href="#" aria-label="OTO">
+            <img src="/oto-logo.jpg" alt="OTO" />
+          </a>
           <div className="ph-ui">
-            <a className="ph-logo" href="#" aria-label="OTO">
-              <img src={logo.url} alt="OTO" />
-            </a>
             <nav className="ph-links" aria-label="Main">
               <a href="#ph-foot">[Products]</a>
               <a href="#ph-foot">[Contact]</a>

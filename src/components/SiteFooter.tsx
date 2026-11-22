@@ -1,4 +1,3 @@
-import logoLight from "@/assets/oto-logo-light.png.asset.json";
 
 const SPECS = [
   ["Diameter", "Ø 12.7 mm"],
@@ -67,7 +66,7 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <img className="ph-foot-logo" src={logoLight.url} alt="OTO" />
+        <img className="ph-foot-logo" src="/oto-logo.jpg" alt="OTO" />
 
         <div className="ph-foot-bar">
           <span>© 2026 OTO</span>
