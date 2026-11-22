@@ -4,7 +4,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } 
 
 export type PolisherVariant = "Soft" | "Hard";
 
-// The remaining request fields and delivery destination await the user's form reference.
+// Delivery remains disabled until a request destination is supplied.
 export function RequestDialog({ model }: { model?: PolisherVariant }) {
   const [selected, setSelected] = useState<PolisherVariant>(model ?? "Soft");
   return (
@@ -14,10 +14,17 @@ export function RequestDialog({ model }: { model?: PolisherVariant }) {
       </DialogTrigger>
       <DialogContent className="request-dialog">
         <p className="eyebrow">OTO / PRODUCT ENQUIRY</p>
-        <DialogTitle className="request-title">Your next brilliant finish.</DialogTitle>
-        <DialogDescription>Select the polisher for your request.</DialogDescription>
+        <DialogTitle className="request-title">Submit a request</DialogTitle>
+        <DialogDescription>Tell us about yourself and the polisher you are interested in.</DialogDescription>
+        <form className="request-form" onSubmit={(event) => event.preventDefault()}>
+          <div className="request-fields">
+            <label>Full name<input name="fullName" autoComplete="name" placeholder="Your full name" required /></label>
+            <label>Email<input name="email" type="email" autoComplete="email" placeholder="you@practice.com" required /></label>
+            <label>City<input name="city" autoComplete="address-level2" placeholder="Where you live" required /></label>
+            <label>Phone <span>(optional)</span><input name="phone" type="tel" autoComplete="tel" /></label>
+          </div>
         <fieldset className="model-options">
-          <legend>Product model</legend>
+          <legend>Interested in</legend>
           {(["Soft", "Hard"] as const).map((variant) => (
             <label key={variant} className={selected === variant ? "selected" : ""}>
               <input type="radio" name="model" value={variant} checked={selected === variant} onChange={() => setSelected(variant)} />
@@ -27,6 +34,11 @@ export function RequestDialog({ model }: { model?: PolisherVariant }) {
             </label>
           ))}
         </fieldset>
+          <label className="request-notes">Anything we should know? <span>(optional)</span>
+            <textarea name="notes" rows={3} placeholder="Tell us about your polishing needs, preferred model, or any questions." />
+          </label>
+          <button type="submit" className="request-submit" disabled>Submit my request</button>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -55,7 +55,7 @@ export function SiteFooter() {
             ))}
           </dl>
           <div className="ph-foot-cta">
-            <p>Request a</p>
+            <p>Request a spiral polisher for contra-angle handpieces.</p>
             <RequestDialog />
           </div>
         </div>
