@@ -18,7 +18,7 @@ export function PolisherHero() {
         <div className="ph-view">
           <canvas
             id="ph-gl"
-            aria-label="A 3D spiral dental polisher with a slowly spinning head in a warm peach sky, with giant words wrapping around it"
+            aria-label="A 3D spiral dental polisher with a slowly spinning head in a soft sage sky, with giant words wrapping around it"
           />
           <div className="ph-ui">
             <a className="ph-logo" href="#" aria-label="OTO">

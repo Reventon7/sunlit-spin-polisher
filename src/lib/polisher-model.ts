@@ -9,15 +9,16 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 /** Head dimensions from the product sheet: Ø 12.7 mm, 0.6 mm disc. */
 const HEAD_R = 6.35;
 const BLADES = 24;
-const ROOT_R = 2.9;
-const SWEEP = 0.95; // radians the blades curve from root to tip
+const ROOT_R = 3.15;
+const SWEEP = 0.62; // gentle curved fingers, matched to the product photographs
 const DISC = 0.6;
-const BEVEL = 0.16;
+const BEVEL = 0.08;
 /** Frame the camera renders into (the template's 1080x1920 portrait video frame). */
 const FRAME_ASPECT = 1080 / 1920;
 
-const RUBBER = "#8a5960";
-const STEEL = "#d9d9de";
+// Light olive-grey abrasive head and dark mandrel from the reference photographs.
+const RUBBER = "#777966";
+const STEEL = "#363936";
 
 function bladeCurve(r: number) {
   const u = Math.max(0, (r - ROOT_R) / (HEAD_R - ROOT_R));
@@ -27,7 +28,7 @@ function bladeCurve(r: number) {
 function headShape(): THREE.Shape {
   const pitch = (Math.PI * 2) / BLADES;
   const sh = Math.sin(pitch / 2);
-  const capR = HEAD_R * sh * 0.46;
+  const capR = HEAD_R * sh * 0.43;
   const BS = 0.06; // bevel grows the outline, so pull the edges in by the same amount
   const tipR = HEAD_R - capR;
   const kTip = capR / (tipR * sh);
@@ -44,7 +45,7 @@ function headShape(): THREE.Shape {
   };
   const half = (r: number) => {
     const u = (r - ROOT_R) / (tipR - ROOT_R);
-    return r * sh * (0.9 + (kTip - 0.9) * Math.pow(u, 0.6)) - BS;
+    return r * sh * (0.72 + (kTip - 0.72) * Math.pow(u, 0.6)) - BS;
   };
   const steps = 22;
   for (let i = 0; i < BLADES; i++) {
@@ -71,7 +72,7 @@ function headShape(): THREE.Shape {
   return new THREE.Shape(pts);
 }
 
-/** Dish the disc slightly and tilt each blade like a fan, so the head reads as 3D. */
+/** The photographed disc is nearly planar, with only a little flex at the tips. */
 function shapeHeight(x: number, y: number) {
   const r = Math.hypot(x, y);
   if (r <= ROOT_R) return 0;
@@ -80,7 +81,7 @@ function shapeHeight(x: number, y: number) {
   let d = Math.atan2(y, x) - bladeCurve(r);
   d = d - pitch * Math.round(d / pitch);
   const across = d / (pitch / 2);
-  return 0.3 * u * u + 0.09 * across * u;
+  return 0.035 * u * u + 0.015 * across * u;
 }
 
 function headGeometry() {
@@ -153,14 +154,6 @@ function hubGeometry() {
   );
 }
 
-function capGeometry() {
-  const P = (r: number, y: number) => new THREE.Vector2(r, y);
-  return new THREE.LatheGeometry(
-    [P(0, DISC + 0.25), P(1.3, DISC + 0.25), P(1.42, DISC + 0.38), P(1.3, DISC + 0.62), P(0.7, DISC + 0.78), P(0, DISC + 0.82)],
-    64,
-  );
-}
-
 function gritTexture() {
   const c = document.createElement("canvas");
   c.width = c.height = 256;
@@ -217,23 +210,29 @@ export function createPolisherModel(
   const grit = gritTexture();
   const rubber = new THREE.MeshPhysicalMaterial({
     color: RUBBER,
-    roughness: 0.72,
+    roughness: 0.9,
     metalness: 0,
-    sheen: 0.3,
-    sheenRoughness: 0.6,
-    sheenColor: new THREE.Color("#f2c4c8"),
-    clearcoat: 0.08,
+    sheen: 0.08,
+    sheenRoughness: 0.9,
+    sheenColor: new THREE.Color("#b5b39c"),
+    clearcoat: 0,
     bumpMap: grit,
-    bumpScale: 0.6,
-    envMapIntensity: 0.55,
+    bumpScale: 0.09,
+    envMapIntensity: 0.35,
   });
-  const steel = new THREE.MeshStandardMaterial({ color: STEEL, metalness: 1, roughness: 0.3 });
+  const steel = new THREE.MeshStandardMaterial({
+    color: STEEL,
+    metalness: 0.65,
+    roughness: 0.67,
+    bumpMap: grit,
+    bumpScale: 0.018,
+  });
 
-  const geos = [headGeometry(), capGeometry(), hubGeometry(), shankGeometry()];
+  const geos = [headGeometry(), hubGeometry(), shankGeometry()];
   const head = new THREE.Group();
-  head.add(new THREE.Mesh(geos[0], rubber), new THREE.Mesh(geos[1], rubber));
-  const hub = new THREE.Mesh(geos[2], rubber);
-  const shank = new THREE.Mesh(geos[3], steel);
+  head.add(new THREE.Mesh(geos[0], rubber));
+  const hub = new THREE.Mesh(geos[1], rubber);
+  const shank = new THREE.Mesh(geos[2], steel);
   shank.rotation.y = -0.35;
   const model = new THREE.Group();
   model.add(head, hub, shank);

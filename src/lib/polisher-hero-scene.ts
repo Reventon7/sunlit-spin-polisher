@@ -1,7 +1,7 @@
 // WebGL2 scene for the scroll-driven polisher hero.
 // Port of the "Driftlab jellyfish" template: same sky, points, word ribbons and motion,
 // with the keyed jellyfish video replaced by a full 3D polisher model (polisher-model.ts)
-// drawn into the same context. The sky photo is recoloured to the OTO warm palette.
+// drawn into the same context. The sky photo is recoloured to a cool mineral palette.
 
 import { createPolisherModel, type PolisherModel } from "@/lib/polisher-model";
 
@@ -67,7 +67,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   void main(){vec2 uv=vec2(.5)+(v-.5)*C.xy;uv.y=1.-uv.y;uv.x+=C.z;vec3 c=textureLod(T,uv,1.6).rgb;
   float L=dot(c,vec3(.299,.587,.114));
   float t=clamp(smoothstep(.77,.93,L)*.55+(1.-smoothstep(.05,.29,c.b-c.r))*.45,0.,1.);
-  vec3 a=vec3(.93,.66,.45),b=vec3(.98,.83,.68),d=vec3(1.,.96,.91);
+  vec3 a=vec3(.52,.64,.62),b=vec3(.76,.83,.79),d=vec3(.95,.96,.91);
   O=vec4(t<.5?mix(a,b,t*2.):mix(b,d,t*2.-1.),1.);}`,
     ["T", "C"],
   );
@@ -90,7 +90,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     gl_Position=vec4(x,y,0,1);gl_PointSize=(a.w>.5?5.+a.z*15.:5.+a.z*24.)*P;r=S*.6+a.z*7.+H;}`,
     `in float k;in float r;out vec4 O;void main(){vec2 p=gl_PointCoord-.5;
     if(k>.5){float c=cos(r),s=sin(r);p=mat2(c,-s,s,c)*p;float a=step(max(abs(p.x),abs(p.y)),.3);O=vec4(vec3(.043,.035,.03)*a,a);}
-    else{float a=smoothstep(.5,.1,length(p))*.62;O=vec4(vec3(1.,.97,.92)*a,a);}}`,
+    else{float a=smoothstep(.5,.1,length(p))*.62;O=vec4(vec3(.96,.99,.97)*a,a);}}`,
     ["S", "H", "P"],
   );
   // word atlas: one row per word, cut to its measured width
