@@ -276,17 +276,14 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   const marks = [...q("ph-index").querySelectorAll("b")];
   const c1El = q("ph-c1"),
     c2El = q("ph-c2"),
-    gog = q("ph-goggle"),
     p1 = q("ph-p1"),
-    p2 = q("ph-p2"),
-    thumb = q("ph-thumb");
+    p2 = q("ph-p2");
   function ui(s: number, k: number) {
     const op = (a: number, b: number, c: number, d: number) => smooth(a, b, s) * (1 - smooth(c, d, s));
     const c1 = 1 - smooth(0.04, 0.08, s),
       c2 = op(0.08, 0.12, 0.56, 0.62);
     c1El.style.opacity = String(c1);
     c2El.style.opacity = String(c2);
-    gog.style.opacity = String(Math.max(c1, c2));
     const a = op(0.72, 0.77, 0.84, 0.88),
       b = op(0.9, 0.95, 1.1, 1.2);
     p1.style.opacity = String(a);
@@ -299,13 +296,13 @@ export function mountPolisherHero(root: HTMLElement): () => void {
       marks[idx]?.classList.add("on");
       lastIdx = idx;
     }
-    thumb.style.transform = `translateY(${(s * 1011).toFixed(1)}%)`;
   }
 
   const read = () => {
     const r = track.getBoundingClientRect(),
       m = r.height - innerHeight;
     target = clamp(-r.top / m);
+    upBtn.hidden = window.scrollY <= 0;
   };
   const onMove = (e: PointerEvent) => {
     tmx = (e.clientX / innerWidth) * 2 - 1;
@@ -327,47 +324,6 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     raf = requestAnimationFrame(loop);
   }
   const upBtn = q<HTMLButtonElement>("ph-up");
-  upBtn.onclick = () => scrollTo({ top: 0, behavior: calm ? "auto" : "smooth" });
-
-  let ctx: AudioContext | null = null,
-    gain: GainNode | null = null;
-  const soundBtn = q<HTMLButtonElement>("ph-sound");
-  soundBtn.onclick = () => {
-    const on = soundBtn.getAttribute("aria-pressed") !== "true";
-    soundBtn.setAttribute("aria-pressed", String(on));
-    q("ph-st").textContent = on ? "ON" : "OFF";
-    if (!ctx) {
-      ctx = new AudioContext();
-      gain = ctx.createGain();
-      gain.gain.value = 0;
-      const nb = ctx.createBuffer(2, ctx.sampleRate * 4, ctx.sampleRate);
-      for (let c = 0; c < 2; c++) {
-        const d = nb.getChannelData(c);
-        let l = 0;
-        for (let i = 0; i < d.length; i++) {
-          l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02;
-          d[i] = l * 3.5;
-        }
-      }
-      const src = ctx.createBufferSource();
-      src.buffer = nb;
-      src.loop = true;
-      const lp = ctx.createBiquadFilter();
-      lp.type = "lowpass";
-      lp.frequency.value = 520;
-      const lfo = ctx.createOscillator(),
-        lg = ctx.createGain();
-      lfo.frequency.value = 0.09;
-      lg.gain.value = 240;
-      lfo.connect(lg).connect(lp.frequency);
-      src.connect(lp).connect(gain).connect(ctx.destination);
-      src.start();
-      lfo.start();
-    }
-    void ctx.resume();
-    gain!.gain.setTargetAtTime(on ? 0.34 : 0, ctx.currentTime, 0.4);
-  };
-
   const upload = (unit: number, t: WebGLTexture | null, img: HTMLImageElement | TexImageSource, premul: boolean) => {
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, t);
@@ -414,9 +370,6 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     removeEventListener("resize", size);
     removeEventListener("scroll", read);
     removeEventListener("pointermove", onMove);
-    upBtn.onclick = null;
-    soundBtn.onclick = null;
-    void ctx?.close();
     model?.dispose();
   };
 }

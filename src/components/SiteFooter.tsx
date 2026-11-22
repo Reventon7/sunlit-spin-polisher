@@ -1,3 +1,7 @@
+import { Instagram } from "lucide-react";
+import { Logo } from "./Logo";
+import { BackToTop } from "./BackToTop";
+import { RequestDialog } from "./RequestDialog";
 
 const SPECS = [
   ["Diameter", "Ø 12.7 mm"],
@@ -28,11 +32,6 @@ function SpiralMark() {
 }
 
 export function SiteFooter() {
-  const toTop = () => {
-    const calm = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
-    window.scrollTo({ top: 0, behavior: calm ? "auto" : "smooth" });
-  };
-
   return (
     <footer className="ph-foot" id="ph-foot">
       <div className="ph-foot-in">
@@ -56,24 +55,20 @@ export function SiteFooter() {
             ))}
           </dl>
           <div className="ph-foot-cta">
-            <p>TCP543204M spiral polisher for contra-angle handpieces.</p>
-            <a className="ph-btn" href="mailto:?subject=TCP543204M%20quote">
-              Request a quote
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M3 8h10M9 4l4 4-4 4" />
-              </svg>
-            </a>
+            <p>Request a</p>
+            <RequestDialog />
           </div>
         </div>
 
-        <img className="ph-foot-logo" src="/oto-logo.jpg" alt="OTO" />
+        <Logo className="ph-foot-logo" />
 
         <div className="ph-foot-bar">
           <span>© 2026 OTO</span>
           <span>Spiral polishers</span>
-          <button type="button" onClick={toTop}>
-            [Back to top ↑]
-          </button>
+          <div className="footer-actions">
+            <span className="instagram-placeholder" role="img" aria-label="Instagram — coming soon" title="Instagram — coming soon"><Instagram aria-hidden="true" /></span>
+            <BackToTop footer />
+          </div>
         </div>
       </div>
     </footer>

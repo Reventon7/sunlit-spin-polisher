@@ -181,6 +181,7 @@ export type PolisherModel = {
 export function createPolisherModel(
   canvas: HTMLCanvasElement,
   gl: WebGL2RenderingContext,
+  variant: "Soft" | "Hard" = "Soft",
 ): PolisherModel {
   const renderer = new THREE.WebGLRenderer({ canvas, context: gl, antialias: true });
   renderer.autoClear = false;
@@ -209,7 +210,7 @@ export function createPolisherModel(
 
   const grit = gritTexture();
   const rubber = new THREE.MeshPhysicalMaterial({
-    color: RUBBER,
+    color: variant === "Hard" ? "#343b37" : RUBBER,
     roughness: 0.9,
     metalness: 0,
     sheen: 0.08,
