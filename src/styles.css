@@ -400,6 +400,57 @@ body {
   }
 }
 
+@media (aspect-ratio < 1) {
+  .ph-root {
+    --ph-coverage: 100vh;
+    @supports (height: 100lvh) {
+      --ph-coverage: calc(100lvh + env(safe-area-max-inset-bottom, 0px));
+    }
+    --ph-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --ph-text-bottom: calc(72px + var(--ph-safe-bottom));
+  }
+  .ph-pin {
+    height: calc(800vh + var(--ph-coverage));
+  }
+  .ph-view {
+    height: var(--ph-coverage);
+  }
+  .ph-view canvas {
+    transform: none;
+  }
+  .ph-ui {
+    bottom: auto;
+    height: var(--ph-visible, 100vh);
+  }
+  .ph-cap {
+    inset: auto 16px var(--ph-text-bottom);
+    width: auto;
+    height: auto;
+    margin: 0;
+    display: grid;
+    font-size: clamp(15px, 4.2vw, 19px);
+  }
+  .ph-cap p {
+    position: static;
+    grid-area: 1 / 1;
+    align-self: end;
+  }
+  .ph-panel {
+    inset: auto 16px var(--ph-text-bottom);
+    width: auto;
+    max-width: 34ch;
+    margin-inline: auto;
+    text-align: center;
+    font-size: clamp(16px, 4.5vw, 21px);
+  }
+  .ph-up {
+    right: 16px;
+    bottom: calc(18px + var(--ph-safe-bottom));
+  }
+  .ph-root .ph-foot {
+    margin-top: calc(-1 * var(--ph-coverage));
+  }
+}
 
 /* ---------- Footer ---------- */
 .ph-foot {

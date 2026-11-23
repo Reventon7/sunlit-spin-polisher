@@ -72,7 +72,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     ["T", "C"],
   );
   const wordP = program(
-    `layout(location=0) in vec2 a;uniform vec4 W;uniform vec4 B;uniform float A;uniform vec3 L;out vec2 v;
+    `layout(location=0) in vec2 a;uniform vec4 W;uniform vec4 B;uniform float A;uniform vec3 L;uniform float Y;out vec2 v;
   void main(){
     float t=(a.x-.5)*W.x+W.y;
     float th=clamp(t/${RADIUS.toFixed(1)},-1.45,1.45);
@@ -80,9 +80,10 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     float y=(a.y-.5)*L.x+L.y-L.z-3.6*pow(smoothstep(.8,8.,t),1.25)-.012*t*t;
     v=vec2(mix(B.x,B.z,a.x),mix(B.w,B.y,a.y));
     gl_Position=vec4(x*${FOCAL.toFixed(2)}/A,y*${FOCAL.toFixed(2)},0.,${CAM.toFixed(1)}-z);
+    gl_Position.y+=Y*gl_Position.w;
   }`,
     `in vec2 v;uniform sampler2D T;out vec4 O;void main(){float a=texture(T,v).a;O=vec4(vec3(.043,.035,.03)*a,a);}`,
-    ["W", "B", "A", "L", "T"],
+    ["W", "B", "A", "L", "T", "Y"],
   );
   const dotP = program(
     `layout(location=0) in vec4 a;uniform float S,H,P;out float k;out float r;
@@ -178,18 +179,60 @@ export function mountPolisherHero(root: HTMLElement): () => void {
 
   let H = 1,
     dpr = 1,
-    asp = 1;
+    asp = 1,
+    portrait = false;
+  const view = cv.parentElement!;
+  const viewport = window.visualViewport;
+  let visibleHeight = 0;
+  let targetHeight = 0;
+  let captionHeight = 0;
+  let panelHeight = 0;
+  let textBottom = 72;
+  let navBottom = 56;
+
+  function measureText() {
+    captionHeight = Math.max(c1El.offsetHeight, c2El.offsetHeight);
+    panelHeight = Math.max(p1.offsetHeight, p2.offsetHeight);
+    textBottom = parseFloat(getComputedStyle(p1).bottom) || 72;
+    navBottom = Math.max(
+      ...Array.from(view.querySelectorAll<HTMLElement>(".ph-logo, .ph-links"), (el) =>
+        el.offsetTop + el.offsetHeight),
+    );
+  }
+
+  function updateVisibleHeight() {
+    if (visibleHeight === targetHeight) return;
+    // Keep controls inside the screen immediately when browser bars reappear.
+    visibleHeight = !calm && visibleHeight && targetHeight - visibleHeight > 0.5
+      ? visibleHeight + (targetHeight - visibleHeight) * 0.16
+      : targetHeight;
+    view.style.setProperty("--ph-visible", `${visibleHeight}px`);
+  }
   function size() {
+    portrait = matchMedia("(aspect-ratio < 1)").matches;
     dpr = Math.min(devicePixelRatio || 1, 2);
     const W = Math.round(cv.clientWidth * dpr);
     H = Math.round(cv.clientHeight * dpr);
-    cv.width = W;
-    cv.height = H;
+    if (cv.width !== W || cv.height !== H) {
+      if (model) model.resize(W, H);
+      else {
+        if (cv.width !== W) cv.width = W;
+        if (cv.height !== H) cv.height = H;
+      }
+    }
     asp = W / H;
-    gl.viewport(0, 0, W, H);
-    model?.resize(W, H);
+    if (portrait) {
+      targetHeight = Math.min(H / dpr, viewport?.height ?? innerHeight);
+      updateVisibleHeight();
+      measureText();
+    } else {
+      visibleHeight = 0;
+      view.style.removeProperty("--ph-visible");
+    }
+    read();
   }
   addEventListener("resize", size);
+  viewport?.addEventListener("resize", size);
 
   let target = 0,
     now = 0,
@@ -240,33 +283,69 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     gl.bindVertexArray(vaoW);
     gl.uniform1i(wordP.u["T"]!, 1);
     gl.uniform1f(wordP.u["A"]!, asp);
+    const visibleRatio = portrait ? (visibleHeight * dpr) / H : 1;
+    const visibleWidth = cv.width / dpr;
+    const wordHeight = Math.min(visibleHeight * 0.15, visibleWidth * 0.27, 106);
+    const captionTop = visibleHeight - textBottom - captionHeight;
+    const wordBottom = captionTop - 16;
+    const wordTop = wordBottom - wordHeight;
+    const wordCenter = wordBottom - wordHeight / 2;
+    if (portrait) {
+      // Clip departing ribbons before they reach the caption, while leaving the sky intact.
+      const bottom = clamp(Math.round(H - (captionTop - 8) * dpr), 0, H);
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(0, bottom, cv.width, H - bottom);
+    }
     const hs = clamp(asp * 0.58, 0.26, 1);
-    gl.uniform3f(wordP.u["L"]!, hs, 0.19 + 0.1 * (1 - hs), sink);
+    const baseline = 0.19 + 0.1 * (1 - hs);
+    gl.uniform3f(wordP.u["L"]!, hs, baseline, sink);
+    gl.uniform1f(wordP.u["Y"]!, portrait ? 1 - (2 * wordCenter * dpr) / H : 0);
     layout.forEach((w) => {
       const t = w.c - head;
       if (Math.abs(t) > 24) return;
-      gl.uniform4f(wordP.u["W"]!, w.len * hs, t * hs, 0, 0);
+      const widthFraction = portrait ? Math.min(0.85, (wordHeight * w.len) / (0.86 * visibleWidth)) : 0;
+      const ribbonWidth = portrait ? (2 * widthFraction * asp * CAM) / FOCAL : w.len * hs;
+      const verticalScale = portrait ? ribbonWidth / w.len : hs;
+      gl.uniform4f(wordP.u["W"]!, ribbonWidth, t * hs, 0, 0);
+      if (portrait) gl.uniform3f(wordP.u["L"]!, verticalScale, 0, sink);
       gl.uniform4f(wordP.u["B"]!, 0, w.top, w.u, w.bot);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, (cols + 1) * 2);
     });
-    // polisher (same motion as the template's jellyfish)
-    const h = (0.98 + grow * 0.42) * clamp(0.62 + asp * 0.4, 0.6, 1),
-      w = ((h * (1080 / 1920)) / asp) * (0.93 + 0.07 * Math.cos(s * 14));
+    if (portrait) gl.disable(gl.SCISSOR_TEST);
+    // Fit the portrait product envelope, including roll and vertical sway.
+    const stageAspect = asp / visibleRatio;
+    const availableBottom = wordTop + (captionTop + captionHeight - panelHeight - wordTop) *
+      smooth(0.665, 0.72, s);
+    const productTop = navBottom + 12;
+    const productBottom = availableBottom - 24;
+    const sway = 0.036;
+    const fitHeight = portrait
+      ? Math.max(0, (2 * (productBottom - productTop) / visibleHeight - 2 * sway) / 1.52)
+      : 0;
+    const h = portrait
+      ? Math.min(fitHeight, stageAspect * (1.22 + grow * 0.42))
+      : (0.98 + grow * 0.42) * clamp(0.62 + asp * 0.4, 0.6, 1);
+    const w = ((h * (1080 / 1920)) / stageAspect) * (0.93 + 0.07 * Math.cos(s * 14));
     const roll = (0.1 * Math.sin(s * 13 + 0.4) + 0.03 * Math.sin(sec * 0.5)) * (1 + grow * 0.5),
       co = Math.cos(roll),
       si = Math.sin(roll);
-    const ox = mx * 0.018 + side * 0.34 * Math.min(1, asp),
-      oy = 0.03 + 0.018 * Math.sin(sec * 0.8) + my * 0.018 - grow * 0.1;
+    const drift = mx * 0.018 + side * 0.34 * Math.min(1, stageAspect);
+    const swayY = 0.018 * Math.sin(sec * 0.8) + my * 0.018;
+    const sideRoom = Math.max(0, 1 - (0.58 * h) / stageAspect - 24 / visibleWidth);
+    const ox = portrait ? clamp(drift, -sideRoom, sideRoom) : drift;
+    const oy = portrait
+      ? 1 - 2 * productBottom / visibleHeight + 0.86 * h + sway + swayY
+      : 0.03 + 0.018 * Math.sin(sec * 0.8) + my * 0.018 - grow * 0.1;
     gl.bindVertexArray(null);
     model?.render([
       w * 2 * co,
-      w * 2 * si * asp,
+      w * 2 * si * stageAspect * visibleRatio,
       0,
-      (-h * 2 * si) / asp,
-      h * 2 * co,
+      (-h * 2 * si) / stageAspect,
+      h * 2 * co * visibleRatio,
       0,
       ox,
-      oy,
+      1 - visibleRatio + oy * visibleRatio,
       1,
     ], calm ? 0 : -sec * HEAD_SPIN);
     ui(s, k);
@@ -287,9 +366,9 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     const a = op(0.72, 0.77, 0.84, 0.88),
       b = op(0.9, 0.95, 1.1, 1.2);
     p1.style.opacity = String(a);
-    p1.style.transform = `translateY(calc(-50% + ${(1 - a) * 18}px))`;
+    p1.style.transform = `translateY(calc(${portrait ? 0 : -50}% + ${(1 - a) * 18}px))`;
     p2.style.opacity = String(b);
-    p2.style.transform = `translateY(calc(-50% + ${(1 - b) * 18}px))`;
+    p2.style.transform = `translateY(calc(${portrait ? 0 : -50}% + ${(1 - b) * 18}px))`;
     const idx = Math.round(k);
     if (idx !== lastIdx) {
       marks[lastIdx]?.classList.remove("on");
@@ -300,7 +379,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
 
   const read = () => {
     const r = track.getBoundingClientRect(),
-      m = r.height - innerHeight;
+      m = r.height - (portrait ? r.height / 8 : innerHeight);
     target = clamp(-r.top / m);
     upBtn.hidden = window.scrollY <= 0;
   };
@@ -320,10 +399,19 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     my += (tmy - my) * 0.05;
     const fp = foot ? clamp((innerHeight - foot.getBoundingClientRect().top) / innerHeight) : 0;
     root.style.setProperty("--fp", fp.toFixed(4));
-    if (fp < 1) draw(now, t / 1000);
+    if (fp < 1) {
+      if (portrait) updateVisibleHeight();
+      draw(now, t / 1000);
+    }
     raf = requestAnimationFrame(loop);
   }
   const upBtn = q<HTMLButtonElement>("ph-up");
+  const canvasSize = new ResizeObserver(size);
+  canvasSize.observe(cv);
+  const measurements = new ResizeObserver(() => {
+    if (portrait) measureText();
+  });
+  [c1El, c2El, p1, p2].forEach((el) => measurements.observe(el));
   const upload = (unit: number, t: WebGLTexture | null, img: HTMLImageElement | TexImageSource, premul: boolean) => {
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, t);
@@ -342,6 +430,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     if (!alive || !ready) return;
     drawAtlas();
     upload(1, tWords, atlas, false);
+    if (portrait) measureText();
   };
   document.fonts.addEventListener("loadingdone", redrawWords);
   const fontReady = document.fonts.ready
@@ -370,6 +459,9 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     removeEventListener("resize", size);
     removeEventListener("scroll", read);
     removeEventListener("pointermove", onMove);
+    viewport?.removeEventListener("resize", size);
+    canvasSize.disconnect();
+    measurements.disconnect();
     model?.dispose();
   };
 }

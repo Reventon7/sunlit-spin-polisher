@@ -80,7 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // twitter:image here: every page without its own would inherit the root's preview image.
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "OTO — Spiral Polishers" },
       { name: "description", content: "OTO spiral dental polishers, shown in a scroll-driven 3D hero." },
       { property: "og:title", content: "OTO — Spiral Polishers" },
