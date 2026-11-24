@@ -404,18 +404,22 @@ body {
 
 @media (aspect-ratio < 1), (aspect-ratio >= 1) and (max-height: 500px) {
   .ph-root {
-    --ph-coverage: 100vh;
-    @supports (height: 100lvh) {
-      --ph-coverage: calc(100lvh + env(safe-area-max-inset-bottom, 0px));
-    }
+    --ph-safe-top: env(safe-area-inset-top, 0px);
     --ph-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --ph-bottom-bleed: max(var(--ph-safe-bottom), env(safe-area-max-inset-bottom, 0px));
+    --ph-coverage: calc(100vh + var(--ph-bottom-bleed));
+    @supports (height: 100lvh) {
+      --ph-coverage: calc(max(100lvh, 100dvh) + var(--ph-bottom-bleed));
+    }
     --ph-text-bottom: calc(72px + var(--ph-safe-bottom));
+    background: linear-gradient(165deg, #dfe8dc, #a6bdb7 53%, #dce6da);
   }
   .ph-pin {
     height: calc(800vh + var(--ph-coverage));
   }
   .ph-view {
     height: var(--ph-coverage);
+    background: transparent;
   }
   .ph-view canvas {
     transform: none;
@@ -427,9 +431,14 @@ body {
   .ph-root .ph-foot {
     margin-top: calc(-1 * var(--ph-coverage));
   }
+  .ph-root .ph-foot-in {
+    padding-bottom: max(22px, var(--ph-safe-bottom));
+  }
 }
 
 @media (aspect-ratio < 1) {
+  .ph-logo { top: calc(14px + var(--ph-safe-top)); }
+  .ph-links { top: calc(19px + var(--ph-safe-top)); }
   .ph-cap {
     inset: auto 16px var(--ph-text-bottom);
     width: auto;
@@ -791,13 +800,13 @@ html::-webkit-scrollbar { display: none; }
 @media (aspect-ratio >= 1) and (max-height: 500px) {
   .ph-logo {
     --ph-logo-left: 16px;
-    top: 0;
+    top: var(--ph-safe-top);
     height: 52px;
   }
   .ph-logo > svg { width: 82px; }
   .ph-links {
     --ph-links-right: 16px;
-    top: 4px;
+    top: calc(4px + var(--ph-safe-top));
     gap: 14px;
   }
   .ph-index { display: none; }
@@ -821,7 +830,7 @@ html::-webkit-scrollbar { display: none; }
   }
   .ph-cap br { display: initial; }
   .ph-panel {
-    top: calc((100% + 52px - max(14px, var(--ph-safe-bottom))) / 2);
+    top: calc((100% + 52px + var(--ph-safe-top) - max(14px, var(--ph-safe-bottom))) / 2);
     bottom: auto;
     width: 38vw;
     font-size: 18px;
