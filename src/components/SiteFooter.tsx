@@ -36,7 +36,6 @@ export function SiteFooter() {
     <footer className="ph-foot" id="ph-foot">
       <div className="ph-foot-in">
         <div className="ph-foot-head">
-          <p className="ph-foot-tag">[06] — Order</p>
           <SpiralMark />
         </div>
 

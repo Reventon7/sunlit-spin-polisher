@@ -21,9 +21,9 @@ function Products() {
         <p className="products-lede">Meet our spiral polishers. Choose your model.</p>
       </div>
       <div className="product-grid">
-        {(["Soft", "Hard"] as const).map((variant, index) => <article className="product-card" key={variant}>
+        {(["Soft", "Hard"] as const).map((variant) => <article className="product-card" key={variant}>
           <ProductPreview variant={variant} />
-          <div className="product-details"><div><p className="eyebrow">0{index + 1} / SPIRAL POLISHER</p><h2>{variant}</h2><p>{variant === "Soft" ? "Light olive finish" : "Dark charcoal finish"}</p></div>
+          <div className="product-details"><div><h2>{variant}</h2><p>{variant === "Soft" ? "Light olive finish" : "Dark charcoal finish"}</p></div>
           <RequestDialog model={variant} /></div>
         </article>)}
       </div>

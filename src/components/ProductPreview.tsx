@@ -31,9 +31,7 @@ export function ProductPreview({ variant }: { variant: PolisherVariant }) {
     return () => { alive = false; cleanup?.(); };
   }, [variant]);
   return <div className={`product-visual ${variant.toLowerCase()}`}>
-    <span className="product-visual-label">OTO / {variant.toUpperCase()}</span>
     <canvas ref={ref} aria-label={`${variant} spiral polisher, ${variant === "Soft" ? "light olive" : "dark charcoal"} head`} />
     {unavailable && <p className="preview-unavailable">{variant === "Soft" ? "Light olive" : "Dark charcoal"} spiral polisher</p>}
-    <span className="product-visual-caption">SPIRAL POLISHER</span>
   </div>;
 }
