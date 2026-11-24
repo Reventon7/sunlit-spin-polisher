@@ -72,7 +72,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     ["T", "C"],
   );
   const wordP = program(
-    `layout(location=0) in vec2 a;uniform vec4 W;uniform vec4 B;uniform float A;uniform vec3 L;uniform float Y;out vec2 v;
+    `layout(location=0) in vec2 a;uniform vec4 W;uniform vec4 B;uniform float A;uniform vec3 L;uniform float Y, F;out vec2 v;
   void main(){
     float t=(a.x-.5)*W.x+W.y;
     float th=clamp(t/${RADIUS.toFixed(1)},-1.45,1.45);
@@ -80,10 +80,11 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     float y=(a.y-.5)*L.x+L.y-L.z-3.6*pow(smoothstep(.8,8.,t),1.25)-.012*t*t;
     v=vec2(mix(B.x,B.z,a.x),mix(B.w,B.y,a.y));
     gl_Position=vec4(x*${FOCAL.toFixed(2)}/A,y*${FOCAL.toFixed(2)},0.,${CAM.toFixed(1)}-z);
+    gl_Position.xy*=F;
     gl_Position.y+=Y*gl_Position.w;
   }`,
     `in vec2 v;uniform sampler2D T;out vec4 O;void main(){float a=texture(T,v).a;O=vec4(vec3(.043,.035,.03)*a,a);}`,
-    ["W", "B", "A", "L", "T", "Y"],
+    ["W", "B", "A", "L", "T", "Y", "F"],
   );
   const dotP = program(
     `layout(location=0) in vec4 a;uniform float S,H,P;out float k;out float r;
@@ -130,7 +131,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     const t = gl.createTexture();
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, unit === 0 ? gl.MIRRORED_REPEAT : gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -180,7 +181,10 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   let H = 1,
     dpr = 1,
     asp = 1,
-    portrait = false;
+    portrait = false,
+    phoneLandscape = false;
+  const landscapeQuery = matchMedia("(aspect-ratio >= 1) and (max-height: 500px)");
+  const portraitQuery = matchMedia("(aspect-ratio < 1)");
   const view = cv.parentElement!;
   const viewport = window.visualViewport;
   let visibleHeight = 0;
@@ -189,11 +193,29 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   let panelHeight = 0;
   let textBottom = 72;
   let navBottom = 56;
+  let safeLeft = 0;
+  let safeRight = 0;
+  let safeBottom = 0;
+  let leftPanelEnd = 0;
+  let rightPanelStart = 0;
+  let layoutWidth = 0;
+  let scrollPlace: { phase: "hero" | "handoff" | "footer"; fraction: number } | undefined;
 
   function measureText() {
     captionHeight = Math.max(c1El.offsetHeight, c2El.offsetHeight);
     panelHeight = Math.max(p1.offsetHeight, p2.offsetHeight);
-    textBottom = parseFloat(getComputedStyle(p1).bottom) || 72;
+    if (phoneLandscape) {
+      const captionStyle = getComputedStyle(c1El.parentElement!);
+      textBottom = parseFloat(captionStyle.bottom);
+      // Use resolved lengths, including env() values, by reading the positioned elements.
+      safeLeft = (view.querySelector<HTMLElement>(".ph-logo")!).offsetLeft;
+      safeRight = parseFloat(getComputedStyle(upBtn).right);
+      safeBottom = parseFloat(getComputedStyle(upBtn).bottom);
+      leftPanelEnd = p1.offsetLeft + p1.offsetWidth;
+      rightPanelStart = p2.offsetLeft;
+    } else {
+      textBottom = parseFloat(getComputedStyle(p1).bottom) || 72;
+    }
     navBottom = Math.max(
       ...Array.from(view.querySelectorAll<HTMLElement>(".ph-logo, .ph-links"), (el) =>
         el.offsetTop + el.offsetHeight),
@@ -209,7 +231,14 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     view.style.setProperty("--ph-visible", `${visibleHeight}px`);
   }
   function size() {
-    portrait = matchMedia("(aspect-ratio < 1)").matches;
+    const width = document.documentElement.clientWidth;
+    const nextLandscape = landscapeQuery.matches;
+    const restore = layoutWidth !== 0 && width !== layoutWidth && (phoneLandscape || nextLandscape)
+      ? scrollPlace
+      : undefined;
+    layoutWidth = width;
+    portrait = portraitQuery.matches;
+    phoneLandscape = nextLandscape;
     dpr = Math.min(devicePixelRatio || 1, 2);
     const W = Math.round(cv.clientWidth * dpr);
     H = Math.round(cv.clientHeight * dpr);
@@ -221,15 +250,27 @@ export function mountPolisherHero(root: HTMLElement): () => void {
       }
     }
     asp = W / H;
-    if (portrait) {
-      targetHeight = Math.min(H / dpr, viewport?.height ?? innerHeight);
+    if (portrait || phoneLandscape) {
+      targetHeight = Math.min(H / dpr, viewport ? viewport.height * viewport.scale : innerHeight);
       updateVisibleHeight();
       measureText();
     } else {
       visibleHeight = 0;
       view.style.removeProperty("--ph-visible");
     }
+    if (restore && foot) {
+      const footerStart = scrollY + foot.getBoundingClientRect().top;
+      const handoffStart = footerStart - handoffHeight();
+      const end = document.documentElement.scrollHeight - innerHeight;
+      const y = restore.phase === "hero"
+        ? restore.fraction * track.offsetHeight * 7 / 8
+        : restore.phase === "handoff"
+          ? handoffStart + restore.fraction * handoffHeight()
+          : footerStart + restore.fraction * Math.max(0, end - footerStart);
+      window.scrollTo({ top: y, behavior: "instant" });
+    }
     read();
+    if (restore) now = target;
   }
   addEventListener("resize", size);
   viewport?.addEventListener("resize", size);
@@ -267,7 +308,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     const ca = asp / (16 / 9),
       fx = ca > 1 ? 1 : ca,
       fy = ca > 1 ? 1 / ca : 1;
-    gl.uniform3f(skyP.u["C"]!, fx * 0.92, fy * 0.92, s * 0.05 + sec * 0.0022);
+    gl.uniform3f(skyP.u["C"]!, fx * 0.92, fy * 0.92, (s * 0.05 + sec * 0.0022) % 2);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -283,22 +324,32 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     gl.bindVertexArray(vaoW);
     gl.uniform1i(wordP.u["T"]!, 1);
     gl.uniform1f(wordP.u["A"]!, asp);
-    const visibleRatio = portrait ? (visibleHeight * dpr) / H : 1;
+    const visibleRatio = portrait || phoneLandscape ? (visibleHeight * dpr) / H : 1;
     const visibleWidth = cv.width / dpr;
     const wordHeight = Math.min(visibleHeight * 0.15, visibleWidth * 0.27, 106);
     const captionTop = visibleHeight - textBottom - captionHeight;
     const wordBottom = captionTop - 16;
     const wordTop = wordBottom - wordHeight;
     const wordCenter = wordBottom - wordHeight / 2;
-    if (portrait) {
+    const landscapeCaptionTop = visibleHeight - textBottom - captionHeight;
+    const landscapeTop = navBottom + 6;
+    const landscapePanelBlend = smooth(0.665, 0.72, s);
+    const landscapeBottom = landscapeCaptionTop - 10 +
+      (visibleHeight - safeBottom - 10 - (landscapeCaptionTop - 10)) * landscapePanelBlend;
+    const landscapeCenter = (landscapeTop + landscapeBottom) / 2;
+    if (portrait || phoneLandscape) {
       // Clip departing ribbons before they reach the caption, while leaving the sky intact.
-      const bottom = clamp(Math.round(H - (captionTop - 8) * dpr), 0, H);
+      const bottom = clamp(Math.round(H - (captionTop - (phoneLandscape ? 5 : 8)) * dpr), 0, H);
       gl.enable(gl.SCISSOR_TEST);
       gl.scissor(0, bottom, cv.width, H - bottom);
     }
     const hs = clamp(asp * 0.58, 0.26, 1);
     const baseline = 0.19 + 0.1 * (1 - hs);
     gl.uniform3f(wordP.u["L"]!, hs, baseline, sink);
+    const ribbonScale = phoneLandscape
+      ? Math.min(visibleRatio, Math.max(0, landscapeCaptionTop - landscapeTop - 10) * dpr / (H * 0.62))
+      : 1;
+    gl.uniform1f(wordP.u["F"]!, 1);
     gl.uniform1f(wordP.u["Y"]!, portrait ? 1 - (2 * wordCenter * dpr) / H : 0);
     layout.forEach((w) => {
       const t = w.c - head;
@@ -306,12 +357,22 @@ export function mountPolisherHero(root: HTMLElement): () => void {
       const widthFraction = portrait ? Math.min(0.85, (wordHeight * w.len) / (0.86 * visibleWidth)) : 0;
       const ribbonWidth = portrait ? (2 * widthFraction * asp * CAM) / FOCAL : w.len * hs;
       const verticalScale = portrait ? ribbonWidth / w.len : hs;
+      if (phoneLandscape) {
+        // Bound the centred ribbon using the same projection as the vertex shader.
+        const angle = Math.min(1.45, ribbonWidth / (2 * RADIUS));
+        const depth = CAM - RADIUS * (1 - Math.cos(angle)) * 0.82;
+        const edge = RADIUS * Math.sin(angle) * FOCAL / (asp * depth);
+        const sideGutter = 12 + Math.max(safeLeft, safeRight);
+        const scale = Math.min(ribbonScale, Math.max(0, 1 - 2 * sideGutter / visibleWidth) / edge);
+        gl.uniform1f(wordP.u["F"]!, scale);
+        gl.uniform1f(wordP.u["Y"]!, 1 - 2 * landscapeCenter * dpr / H - baseline * FOCAL / CAM * scale);
+      }
       gl.uniform4f(wordP.u["W"]!, ribbonWidth, t * hs, 0, 0);
       if (portrait) gl.uniform3f(wordP.u["L"]!, verticalScale, 0, sink);
       gl.uniform4f(wordP.u["B"]!, 0, w.top, w.u, w.bot);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, (cols + 1) * 2);
     });
-    if (portrait) gl.disable(gl.SCISSOR_TEST);
+    if (portrait || phoneLandscape) gl.disable(gl.SCISSOR_TEST);
     // Fit the portrait product envelope, including roll and vertical sway.
     const stageAspect = asp / visibleRatio;
     const availableBottom = wordTop + (captionTop + captionHeight - panelHeight - wordTop) *
@@ -322,20 +383,36 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     const fitHeight = portrait
       ? Math.max(0, (2 * (productBottom - productTop) / visibleHeight - 2 * sway) / 1.52)
       : 0;
-    const h = portrait
+    let h = portrait
       ? Math.min(fitHeight, stageAspect * (1.22 + grow * 0.42))
       : (0.98 + grow * 0.42) * clamp(0.62 + asp * 0.4, 0.6, 1);
-    const w = ((h * (1080 / 1920)) / stageAspect) * (0.93 + 0.07 * Math.cos(s * 14));
     const roll = (0.1 * Math.sin(s * 13 + 0.4) + 0.03 * Math.sin(sec * 0.5)) * (1 + grow * 0.5),
       co = Math.cos(roll),
       si = Math.sin(roll);
     const drift = mx * 0.018 + side * 0.34 * Math.min(1, stageAspect);
     const swayY = 0.018 * Math.sin(sec * 0.8) + my * 0.018;
     const sideRoom = Math.max(0, 1 - (0.58 * h) / stageAspect - 24 / visibleWidth);
-    const ox = portrait ? clamp(drift, -sideRoom, sideRoom) : drift;
-    const oy = portrait
+    let ox = portrait ? clamp(drift, -sideRoom, sideRoom) : drift;
+    let oy = portrait
       ? 1 - 2 * productBottom / visibleHeight + 0.86 * h + sway + swayY
       : 0.03 + 0.018 * Math.sin(sec * 0.8) + my * 0.018 - grow * 0.1;
+    if (phoneLandscape) {
+      // Clear each panel before it fades in. The original side motion still adds drift
+      // within that lane, and the lane switches during the gap between the panels.
+      const onLeft = smooth(0.88, 0.9, s);
+      const laneLeft = safeLeft + (leftPanelEnd + 24 - safeLeft) * (1 - onLeft) * landscapePanelBlend;
+      const laneRight = visibleWidth - safeRight -
+        (visibleWidth - safeRight - rightPanelStart + 24) * onLeft * landscapePanelBlend;
+      const laneWidth = laneRight - laneLeft;
+      const verticalFit = (2 * (landscapeBottom - landscapeTop) / visibleHeight - 2 * sway) / 1.52;
+      h = Math.max(0, Math.min(h, verticalFit, (laneWidth - 8) / (0.58 * visibleHeight)));
+      const halfModel = 0.58 * h * visibleHeight / 2;
+      const laneCenter = (laneLeft + laneRight) / 2;
+      const center = clamp(laneCenter + drift * visibleWidth / 2, laneLeft + halfModel, laneRight - halfModel);
+      ox = 2 * center / visibleWidth - 1;
+      oy = 1 - 2 * landscapeCenter / visibleHeight + 0.10 * h + swayY;
+    }
+    const w = ((h * (1080 / 1920)) / stageAspect) * (0.93 + 0.07 * Math.cos(s * 14));
     gl.bindVertexArray(null);
     model?.render([
       w * 2 * co,
@@ -377,10 +454,22 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     }
   }
 
+  const handoffHeight = () => phoneLandscape ? targetHeight || innerHeight : innerHeight;
   const read = () => {
-    const r = track.getBoundingClientRect(),
-      m = r.height - (portrait ? r.height / 8 : innerHeight);
-    target = clamp(-r.top / m);
+    // Resize owns the old scroll snapshot until it has restored the new width.
+    if (layoutWidth !== document.documentElement.clientWidth) return;
+    const r = track.getBoundingClientRect();
+    target = clamp(-r.top / (r.height * 7 / 8));
+    if (foot) {
+      const top = foot.getBoundingClientRect().top;
+      const height = handoffHeight();
+      const remaining = document.documentElement.scrollHeight - innerHeight - scrollY;
+      scrollPlace = top >= height
+        ? { phase: "hero", fraction: target }
+        : top > 0
+          ? { phase: "handoff", fraction: 1 - top / height }
+          : { phase: "footer", fraction: -top / Math.max(1, remaining - top) };
+    }
     upBtn.hidden = window.scrollY <= 0;
   };
   const onMove = (e: PointerEvent) => {
@@ -397,10 +486,11 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     now += (target - now) * (calm ? 1 : 0.1);
     mx += (tmx - mx) * 0.05;
     my += (tmy - my) * 0.05;
-    const fp = foot ? clamp((innerHeight - foot.getBoundingClientRect().top) / innerHeight) : 0;
+    const height = handoffHeight();
+    const fp = foot ? clamp(1 - foot.getBoundingClientRect().top / height) : 0;
     root.style.setProperty("--fp", fp.toFixed(4));
     if (fp < 1) {
-      if (portrait) updateVisibleHeight();
+      if (portrait || phoneLandscape) updateVisibleHeight();
       draw(now, t / 1000);
     }
     raf = requestAnimationFrame(loop);
@@ -409,7 +499,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
   const canvasSize = new ResizeObserver(size);
   canvasSize.observe(cv);
   const measurements = new ResizeObserver(() => {
-    if (portrait) measureText();
+    if (portrait || phoneLandscape) measureText();
   });
   [c1El, c2El, p1, p2].forEach((el) => measurements.observe(el));
   const upload = (unit: number, t: WebGLTexture | null, img: HTMLImageElement | TexImageSource, premul: boolean) => {
@@ -430,7 +520,7 @@ export function mountPolisherHero(root: HTMLElement): () => void {
     if (!alive || !ready) return;
     drawAtlas();
     upload(1, tWords, atlas, false);
-    if (portrait) measureText();
+    if (portrait || phoneLandscape) measureText();
   };
   document.fonts.addEventListener("loadingdone", redrawWords);
   const fontReady = document.fonts.ready
